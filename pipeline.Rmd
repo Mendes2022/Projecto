@@ -1,0 +1,809 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+  html_notebook: default
+  pdf_document: default
+---
+# *In silico* analysis of the chemical profile of extracts from coffee bean residual press cake aiming at the application in the treatment of skin wounds
+
+
+## Context and Motivation
+Coffee is one of the most widely consumed beverages worldwide. Brazil is the world’s largest producer of coffee, exporting almost 3 M tons only in 2020. Global coffee production generates annually 23 million tons of waste. Therefore, coffee industries must make efforts to valorise their by-products to increase the sustainability of the process.
+
+For this reason, research studies on by-products of coffee, such as coffee bean residual press cake (CPC), are taking place continuously to identify possible applications in the biotechnological fields, such as pharmaceutical, food and cosmetics areas. This could lead to a valorisation of CPC, increasing the sustained economic return on coffee crop production.
+
+The extracts of the coffee bean press cake (ECPC) have been analysed using classical analytical techniques, such as NMR spectroscopy, UV-Vis spectrophotometry,  and liquid chromatography (RP-HPLC). Also, there have been performed biochemical assays to evaluate the antioxidant potential of  ECPC, as well as *in vitro* assays to determine cytotoxicity and cell proliferation. Additionally, *in vivo* assays have been carried out to evaluate the potential of ECPC on skin repair in murine study models.
+
+The current challenge is understanding how the ECPC exerts its activity in biological systems as a wound healing agent. In this context, this project aims to explore existing metabolomics datasets of ECPC and of L929 fibroblast cell cultures focusing on the healing potential in acute wounds.
+
+#### Goals
+
+Keeping the above context in mind, this project aims to explore the functionalities of the R package *specmine* and complementary tools to process and mine metabolomics data, namely addressing datasets of spectroscopic techniques of ECPC, focusing on the skin wound healing process. The following scientific and technological objectives will be pursued:
+
+Analysis of the selected datasets, creating a repository of datasets with available analysis pipelines:
+  
+  1. Implementing data pre-processing (e.g. removing baseline variations, dimensionality, normalisation, scaling, mean centering and some peak spectra processing) pipelines for the selected data.
+  2. Applying unsupervised learning methods over the resulting data.
+
+
+```{r}
+setwd("~/Desktop/projeto_bioinf")
+library(car)
+library(specmine)
+library(reticulate)
+library(ggplot2)
+library('MetaboAnalystR')
+library("Rnmr1D")
+library('corrplot')
+use_condaenv("rpython", required = TRUE)
+py_module_available("nmrglue")
+
+# Import the necessary Python function
+source_python("/home/catia/R/x86_64-pc-linux-gnu-library/4.3/specmine/read_varian_spec_raw.py")
+source("~/Desktop/projeto_bioinf/my_plot_spectra.R")
+source("~/Desktop/projeto_bioinf/my_plot_peaks.R")
+source("/home/catia/Desktop/projeto_bioinf/my_detect_nmr_peak_column.R")
+source("/home/catia/Desktop/projeto_bioinf/cor_df.R")
+source("/home/catia/Desktop/projeto_bioinf/find_caffeine.R")
+source("/home/catia/Desktop/projeto_bioinf/find_chlorogenic.R")
+source("/home/catia/Desktop/projeto_bioinf/find_lactate.R")
+source("/home/catia/Desktop/projeto_bioinf/find_alanine.R")
+source("/home/catia/Desktop/projeto_bioinf/find_glutamine.R")
+source("/home/catia/Desktop/projeto_bioinf/find_succinate.R")
+source("/home/catia/Desktop/projeto_bioinf/find_acetate.R")
+source("/home/catia/Desktop/projeto_bioinf/find_choline.R")
+source("/home/catia/Desktop/projeto_bioinf/find_glycine.R")
+```
+## Description of the dataset 
+The dataset selected for analysis in the present project originated from a series of experiments conducted by Regina Afonso, aiming to further investigate the results highlighted in the related work section. In summary, L929 fibroblast cell cultures were subjected to incisions to simulate a wound. Subsequently, separate experiments were conducted, adding the following solutions: extracts of residual coffee bean press cake from green coffee (EGCPC) and roasted coffee (ETCPC), caffeic acid, chlorogenic acid, and caffeine. These three compounds were selected due to their presence in the chemical composition of the analyzed extracts.
+
+Later, proton nuclear magnetic resonance (NMR) was performed on both the extracellular content of the cells (supernatants of the culture media) to identify the exometabolome and the cellular extracts (endometabolome). This allows for a better understanding of intracellular and extracellular metabolism during the cellular healing process.
+
+To facilitate the analysis of the obtained NMR data, it was divided into subdatasets described as "exometabolome," "endometabolome," and "extracts," where the latter specifically refers to the EGCPC and ETCPC extracts.
+
+### Analysis of the subdataset "extracts"
+
+In the initial phase, the data from the "extracts" subdataset were analyzed, which consists of two samples, one from each extract, with 32,000 data points. The metabolomic profile of each extract obtained by 1H NMR is shown in Figure 1. Visual analysis of the metabolomic profiles revealed that the samples exhibit similar chemical compositions.
+
+Upon analyzing in ascending order of ppm, it is evident that in the range between 0.5 to 3.0 ppm, which corresponds to the aliphatic region, there is a slight variation in intensity values. This region includes signals from various aliphatic protons such as methyl (CH₃), methylene (CH₂), and methine (CH) groups. The chemical shifts within this range can vary depending on the specific functional groups and neighboring atoms present in the alkaloid molecule.
+
+From the profiles, it is noticeable that the peaks with higher intensity are found in the range between 3 and 4 ppm, especially in the case of EGCPC, where signals associated with aliphatic protons are also present.
+
+Furthermore, ETCPC shows lower intensities in the range of phenolic compounds, which typically appears in the chemical shift range of 6.0 to 9.0 parts per million (ppm).
+
+Phenolic compounds exhibit distinctive peaks in this chemical shift range due to the presence of an aromatic ring and the influence of the hydroxyl (-OH) group attached to it. The aromatic protons in phenolic compounds tend to experience deshielding effects, causing them to resonate at higher chemical shifts compared to other types of protons.
+
+The difference in the phenolic region is justified considering that those metabolites are thermolabile, and it is common for roasted coffee to have lower contents compared to green coffee, which aligns with previous studies. However, it is worth mentioning the peaks representing chlorogenic acid, as expected, ETCPC shows lower intensities. This is because phenolic acids and their derivatives can be degraded under high temperatures, and it can be speculated that the lower concentration of these acids in the roasted coffee samples results from the thermal treatment of the biomass during the roasting process.
+The ETCPC samples exhibited higher quantities of caffeine compared to EGCPC. Additionally, the studied samples showed discrepancies in their alkaloid and chlorogenic acid contents, suggesting different potentials in terms of their biological effects and in the cell regenaration and proliferation. 
+
+In order to verify the variation of caffeine and chlorogenic acid in the samples, it was implemented to functions named find_caffeine and find_chlorogenic. Has previous observed on the spectrum, the results corroborate with the presence of this metabolites on the samples.
+
+However, it's important to note that this comparison can only provide qualitative insights and not quantitative measurements. The intensity of a peak in an NMR spectrum is influenced by various factors such as the number of protons, their chemical environment, relaxation times, and instrumental parameters. Therefore, while comparing peak intensities it can only provide a general idea of relative concentrations. 
+
+
+```{r}
+varian_nmr_ext="/home/catia/Desktop/projeto_bioinf/extract"
+ext="/home/catia/Desktop/projeto_bioinf/extract.csv"
+
+#Data visualization
+
+directories_to_read = grep(".*[.]fid", list.dirs(varian_nmr_ext,
+                                                 full.names = TRUE), value = TRUE)
+
+for (i in (directories_to_read)) {
+  spectrum = read_varian_spec_raw(spectrum_directory = i,
+                                  fid_filename = "fid",
+                                  procpar_filename = "procpar",
+                                  zero_filling = TRUE,
+                                  apodization = TRUE)
+  print(i)
+  print(length(spectrum[[2]]))
+}
+
+ext_dataset=read_varian_spectra_raw(varian_nmr_ext,samples.names=ext ,zipped=F, zero_filling=F)
+DT::datatable(ext_dataset$data[1:500,], options=list(scrollX = TRUE))
+peaks_ext=detect_nmr_peaks_from_dataset(ext_dataset, baseline_tresh = 2000000)
+DT::datatable(peaks_ext$data, options=list(scrollX = TRUE))
+sum_dataset(ext_dataset)
+my_plot_spectra(ext_dataset, samples = c("ECT", "ECV"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+```
+
+```{r}
+find_caffeine(ext_dataset, 'ECT')
+find_caffeine(ext_dataset, 'ECV')
+find_chlorogenic(ext_dataset, "ECT")
+find_chlorogenic(ext_dataset, "ECV")
+```
+
+```{r}
+samps.stats=stats_by_sample(ext_dataset)
+DT::datatable(samps.stats, options=list(scrollX=TRUE))
+```
+
+```{r}
+
+sample_ECT <- unname(ext_dataset$data[, "ECT"])
+sample_ECV <- unname(ext_dataset$data[, "ECV"])
+
+data <- data.frame(
+  Sample = c(rep("ECT", length(sample_ECT)), rep("ECV", length(sample_ECV))),
+  Intensity = c(sample_ECT, sample_ECV)
+)
+
+ggplot(data, aes(x = Sample, y = Intensity, fill = Sample)) +
+  geom_violin() +
+  labs(x = "Sample", y = "Intensity") +
+  scale_fill_manual(values = c("#000000", "#FF0000"))
+
+ggsave("violin_proc.png", plot = last_plot(), dpi = 300)
+
+ggplot(data, aes(x = Sample, y = Intensity)) +
+  geom_boxplot(fill = c("#FF0000", "#0000FF")) +
+  labs(x = "Sample", y = "Intensity") +
+  ggtitle("Boxplot") +
+  theme_minimal()
+
+ggsave("boxplot_proc.png", plot = last_plot(), dpi = 300)
+```
+
+After analyzing the spectrum and the distribution of the intensity values, the following preprocessing steps were performed: removal of variables with missing values, logarithmic transformation, scaling, background correction using modified polynomial fitting, smoothing-interpolation using binning method, mean-centering, and normalization using the median method. These preprocessing steps were applied to enhance the quality and comparability of the spectral data for further analysis.
+
+Data preprocessing is an important step that can significantly improve the interpretation of spectra by reducing dimensionality, removing irrelevant information and outliers, and enhancing the robustness and accuracy of classification analyses.
+
+```{r}
+
+#Data preprocessing
+
+#Data transformation
+ext_dataset=transform_data(ext_dataset, method = "log")
+#Data scaling
+ext_dataset=scaling(ext_dataset, method = "auto")
+#Data correction
+ext_dataset=data_correction(ext_dataset, type = "background", method = "modpolyfit")
+#smoothing-interplation
+ext_dataset=smoothing_interpolation(ext_dataset, method = "bin", reducing.factor = 2, x.axis = NULL, p.order = 3, window = 11, deriv = 0)
+#mean-centering
+ext_dataset=mean_centering(ext_dataset)
+#Data Normalization
+ext_dataset=normalize(ext_dataset, method="median", ref = NULL, constant = 1000)
+```
+
+A Welch's two-sample t-test was conducted to analyze this samples. The t-value obtained was 4.6301, with a degree of freedom (df) of 55558. The resulting p-value was 3.664e-06, indicating a highly significant difference between the means of the two groups. 
+The results indicate that the average value of ETCPC. was higher than that of EGCPC.
+
+Furthermore, the correlation between the samples was determined to be 0.510, that indicates a moderate relationship between the two samples.
+
+```{r}
+
+# Perform the t-test
+ttest_result <- t.test(sample_ECT, sample_ECV)
+
+# Print the t-test results
+print(ttest_result)
+
+#Correlation
+cor(sample_ECT,sample_ECV)
+
+```
+
+### Analysis of the subdataset "exometabolome"
+
+The next step involved analyzing the "exometabolome" subdataset, which contains the NMR data of the supernatants of the culture media in the presence of the analyzed extracts and the compounds caffeic acid, chlorogenic acid, and caffeine. Analyzing these three compounds is relevant because, in addition to being present in the analyzed extracts, as previously verified, they have properties that can contribute to cellular regeneration.
+
+Caffeic acid is an antioxidant with anti-inflammatory and photoprotective properties. Studies have shown that caffeic acid can promote cellular regeneration by stimulating the synthesis of collagen, an important protein for wound healing and skin regeneration.
+Chlorogenic acid also has antioxidant and anti-inflammatory properties, stimulating the activity of antioxidant enzymes and increasing the proliferation of skin cells.
+Caffeine, on the other hand, can have positive or negative effects depending on the dose and context. At low concentrations, caffeine can promote cellular regeneration by stimulating cell proliferation and increasing metabolic activity. However, at higher doses, caffeine can interfere with cellular regeneration by inhibiting collagen synthesis and negatively affecting wound healing.
+
+Considering this, it is necessary to take into account that the present subdataset also includes intensity values for the culture medium and for the experiment where no compound was added, apart from the culture medium. As can be seen in the table describing the ppm and intensity values of this subdataset, each experiment was conducted in quadruplicate. 
+```{r}
+varian_nmr_celulas="/home/catia/Desktop/projeto_bioinf/ReginaAfonso"
+celulas="/home/catia/Desktop/projeto_bioinf/celulas.csv"
+
+
+directories_to_read = grep(".*[.]fid", list.dirs(varian_nmr_celulas,
+        full.names = TRUE), value = TRUE)
+
+for (i in (directories_to_read)) {
+    spectrum = read_varian_spec_raw(spectrum_directory = i,
+                                     fid_filename = "fid",
+                                     procpar_filename = "procpar",
+                                     zero_filling = TRUE,
+                                     apodization = TRUE)
+                                 
+    print(i)
+    print(length(spectrum[[2]]))
+}
+
+celulas_dataset=read_varian_spectra_raw(varian_nmr_celulas,samples.names=celulas ,zipped=F, zero_filling=F)
+DT::datatable(celulas_dataset$data[1:500,], options=list(scrollX = TRUE))
+peaks_cell=detect_nmr_peaks_from_dataset(celulas_dataset, baseline_tresh = 2000)
+DT::datatable(peaks_cell$data, options=list(scrollX = TRUE))
+colnames(celulas_dataset$data)
+```
+
+After visualizing the obtained data, there is uncertainty in distinguishing between the sample that corresponds to only the culture medium and the one representing the control. Considering the complexity of the spectrum of sample "Branco_Meio_2," it is possible to infer that the other sample corresponds to the sample with only the culture medium. However, the nmr_identification function from the specmine package was used to confirm whether the metabolites present in that sample are consistent with the composition of the DMEM culture medium with 10% FBS.
+
+```{r}
+my_plot_spectra(celulas_dataset, samples = c("Branco_Meio_1", "Branco_Meio_2"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+```
+```{r}
+
+sample_b1 <- unname(celulas_dataset$data[, "Branco_Meio_1"])
+sample_b2 <- unname(celulas_dataset$data[, "Branco_Meio_2"])
+
+data <- data.frame(
+  Sample = c(rep("Branco_Meio_1", length(sample_b1)), rep("Branco_Meio_2", length(sample_b2))),
+  Intensity = c(sample_b1, sample_b2)
+)
+
+
+ggplot(data, aes(x = Sample, y = Intensity, fill = Sample)) +
+  geom_violin() +
+  labs(x = "Sample", y = "Intensity") +
+  scale_fill_manual(values = c("#000000", "#FF0000"))
+
+
+ggsave("violin_proc1.png", plot = last_plot(), dpi = 300)
+
+
+
+ggplot(data, aes(x = Sample, y = Intensity)) +
+  geom_boxplot(fill = c("#FF0000", "#0000FF")) +
+  labs(x = "Sample", y = "Intensity") +
+  ggtitle("Boxplot") +
+  theme_minimal()
+
+ggsave("boxplot_proc1.png", plot = last_plot(), dpi = 300)
+```
+
+
+Considering that the metabolites identified with a higher score are part of the complex composition of the culture medium, data analysis was continued with the assumption that this sample corresponds to DMEM medium.
+
+```{r}
+
+column_name <- "Branco_Meio_1"
+peaks_celulas <- detect_nmr_peaks_from_column(celulas_dataset, column_name)
+
+# Create a data frame with ppm and intensity columns
+peaks_medium <- data.frame(ppm = peaks_celulas[,1], intensity = peaks_celulas[,2])
+
+# Set the parameters for metabolite identification
+ppm.tol <- 0.03  # PPM tolerance for peak matching
+
+# Remove rows with missing values from peaks_medium
+peaks_medium <- peaks_medium[complete.cases(peaks_medium$ppm), ]
+
+# Extract the peaks from peaks_medium
+sample_peaks <- peaks_medium$intensity
+
+# Remove missing values from sample_peaks
+sample_peaks <- sample_peaks[complete.cases(sample_peaks)]
+
+# Check if there are any missing values
+if (length(sample_peaks) == 0) {
+  stop("No valid peaks available for matching.")
+}
+
+# Create a dataset object with sample_peaks as the data
+dataset <- list(data = data.frame(intensity = sample_peaks))
+# Perform metabolite identification using HMDB database
+dmem_fbs_medium<- nmr_identification(dataset, ppm.tol = ppm.tol,
+                              frequency_scores = list('400' = 0, '500' = 0, '600' = 1, '700' = 0),
+                              solvent_scores = list(CD3OD = 0, D2O = 0.8, Water = 0.8, CDCl3 = 0, 'Acetone-d6' = 0, 'Acetone' = 0, "DMSO-d6" = 0,
+                                                    '100%_DMSO' = 0,
+                                                    '5%_DMSO' = 0, C = 0, C6D6 = 0, CD3CN = 0, C2D2Cl4 = 0, CD2Cl2 = 0,
+                                                    CDC3OD = 1, Ethanol = 0),
+                              organism_scores = list('Eudicots' = 1, 'Monocots' = 1, 'ame' = 0.9, 'other' = 1, 'not_in_kegg' = 1))
+print(dmem_fbs_medium$results_table["Name"])
+
+```
+
+Next, the metabolomic profiles of the remaining samples were visualized, with each graph representing their respective quadruplicates. Overall, variations between the quadruplicates and variations in the complexity of the spectra among the samples were observed. The same holds true after summarizing each sample. The summary statistics include the minimum, maximum, median, mean, and quartile values for each sample.
+
+In the case of the caffeic acid experiment, a discrepancy in the maximum intensity value was notable in sample 1, but the remaining metrics were similar among the quadruplicates. Regarding the chlorogenic acid experiment, there was a variation in the average intensity values, particularly in sample 4. The same pattern was observed in the caffeine experiment, where the average intensity value of sample 2 was much higher than the others. As for the experiments with the analyzed extracts, the metrics were similar, with some variations in the maximum intensity values.
+
+```{r}
+my_plot_spectra(celulas_dataset, samples = c("A_Cefeico_Celulas_1","A_Cefeico_Celulas_2","A_Cefeico_Celulas_3","A_Cefeico_Celulas_4"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+my_plot_spectra(celulas_dataset, samples = c("A_Clorogenico_Celulas_1","A_Clorogenico_Celulas_2","A_Clorogenico_Celulas_3","A_Clorogenico_Celulas_4"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+my_plot_spectra(celulas_dataset, samples = c("Cafeina_Celulas_1", "Cafeina_Celulas_2","Cafeina_Celulas_3","Cafeina_Celulas_4"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+my_plot_spectra(celulas_dataset, samples = c("CafeTorrado_Celulas_1","CafeTorrado_Celulas_2","CafeTorrado_Celulas_3","CafeTorrado_Celulas_4"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+my_plot_spectra(celulas_dataset, samples = c("CafeVerde_Celulas_1","CafeVerde_Celulas_2","CafeVerde_Celulas_3","CafeVerde_Celulas_4"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+
+```
+
+```{r}
+#Detect and align peaks:
+peaks_celulas=detect_nmr_peaks_from_dataset(celulas_dataset)
+DT::datatable(peaks_celulas$data, options=list(scrollX = TRUE))
+sum_dataset(celulas_dataset)
+
+samps.stats=stats_by_sample(celulas_dataset)
+DT::datatable(samps.stats, options=list(scrollX=TRUE))
+
+```
+
+In order to reduce the complexity of the metabolomic profile analysis, the mean value was calculated for each quadruplicate.
+```{r}
+# Define the groups of quadriplicates
+groups <- list(
+  A_Cefeico_Celulas = c("A_Cefeico_Celulas_1", "A_Cefeico_Celulas_2", "A_Cefeico_Celulas_3", "A_Cefeico_Celulas_4"),
+  A_Clorogenico_Celulas = c("A_Clorogenico_Celulas_1", "A_Clorogenico_Celulas_2", "A_Clorogenico_Celulas_3", "A_Clorogenico_Celulas_4"),
+  Cafeina_Celulas = c("Cafeina_Celulas_1", "Cafeina_Celulas_2", "Cafeina_Celulas_3", "Cafeina_Celulas_4"),
+  CafeTorrado_Celulas = c("CafeTorrado_Celulas_1", "CafeTorrado_Celulas_2", "CafeTorrado_Celulas_3", "CafeTorrado_Celulas_4"),
+  CafeVerde_Celulas = c("CafeVerde_Celulas_1", "CafeVerde_Celulas_2", "CafeVerde_Celulas_3", "CafeVerde_Celulas_4")
+)
+
+# Extract the ppm values from the celulas_dataset
+ppm <- rownames(celulas_dataset$data)
+
+# Create an empty dataframe to store the mean intensities
+mean_df <- data.frame(ppm = ppm)
+
+# Iterate over the groups of quadriplicates
+for (group in names(groups)) {
+  quadriplicates <- groups[[group]]
+  
+  # Find the column indices for the quadriplicates
+  cols <- sapply(quadriplicates, function(quad) grep(quad, colnames(celulas_dataset$data)))
+  
+  # Calculate the mean intensity for each ppm value
+  mean_intensity <- rowMeans(celulas_dataset$data[, cols], na.rm = TRUE)
+  
+  # Add the mean intensity to the mean_df dataframe
+  mean_df[[group]] <- mean_intensity
+}
+
+```
+```{r}
+colnames(mean_df)
+summary(mean_df)
+```
+```{r}
+sample_ct <- mean_df[,"CafeTorrado_Celulas"]
+sample_cv <-mean_df[,"CafeVerde_Celulas"]
+sample_ace <- mean_df[,"A_Cefeico_Celulas"]
+sample_acl <- mean_df[,"A_Clorogenico_Celulas"]
+sample_caf <- mean_df[, "Cafeina_Celulas"]
+
+
+data <- data.frame(
+  Sample = c(rep("CafeTorrado_Celulas", length(sample_ct)), rep("CafeVerde_Celulas", length(sample_cv)), rep("A_Cefeico_Celulas", length(sample_ace)), rep("A_Clorogenico_Celulas", length(sample_acl)), rep("Cafeina_Celulas", length(sample_caf)), rep("Branco_meio_2", length(sample_b2))),
+  Intensity = c(sample_ct, sample_cv, sample_ace, sample_acl, sample_caf, sample_b2)
+)
+
+# Get unique levels of the "Sample" variable
+unique_samples <- unique(data$Sample)
+
+# Generate a vector of colors based on the number of unique samples
+colors <- rainbow(length(unique_samples))
+
+ggplot(data, aes(x = Sample, y = Intensity, fill = Sample)) +
+  geom_violin() +
+  labs(x = "Sample", y = "Intensity") +
+  scale_fill_manual(values = colors) +
+  theme_bw()
+
+
+ggsave("violin_proc2.png", plot = last_plot(), width = 20, height = 6, dpi = 300)
+
+```
+In order to determine whether the intensity values of the experiments with the addition of compounds and extracts are statistically different from the control, non-parametric tests were performed for each case. The test used was the Mann-Whitney U test, also known as the Wilcoxon rank-sum test, which is appropriate for comparing the means of two independent groups when the data does not meet the assumptions of normality.
+
+The p-values indicate the level of significance, where a smaller p-value suggests stronger evidence against the null hypothesis of no difference. In all cases, the p-values are very small, indicating significant differences between the groups being compared.
+
+```{r}
+stest2 <- shapiro.test(mean_df[,"CafeVerde_Celulas"][1:5000] )
+stest3 <- shapiro.test(mean_df[,"CafeTorrado_Celulas"][1:5000])
+stest4 <- shapiro.test(celulas_dataset$data[,"Branco_Meio_2"][1:5000] )
+stest5 <- shapiro.test(mean_df[,"A_Cefeico_Celulas"][1:5000])
+stest6 <- shapiro.test(mean_df[,"A_Clorogenico_Celulas"][1:5000])
+print(c(stest2,stest3,stest4,stest5,stest6))
+```
+```{r}
+
+# Perform wilcox.test(
+wtest2 <- wilcox.test(mean_df[,"CafeTorrado_Celulas"], mean_df[,"CafeVerde_Celulas"] )
+wtest3 <- wilcox.test(mean_df[,"CafeTorrado_Celulas"], celulas_dataset$data[,"Branco_Meio_2"] )
+wtest4 <- wilcox.test(mean_df[,"CafeVerde_Celulas"], celulas_dataset$data[,"Branco_Meio_2"] )
+wtest5 <- wilcox.test(mean_df[,"A_Cefeico_Celulas"], celulas_dataset$data[,"Branco_Meio_2"] )
+wtest6 <- wilcox.test(mean_df[,"A_Clorogenico_Celulas"], celulas_dataset$data[,"Branco_Meio_2"] )
+wtest7 <- wilcox.test(mean_df[,"Cafeina_Celulas"], celulas_dataset$data[,"Branco_Meio_2"] )
+print(c(wtest2,wtest3,wtest4,wtest5,wtest6,wtest7))
+```
+
+
+However, before drawing any conclusions from the raw data, it is necessary to perform data preprocessing, which involved following the same steps as the "extracts" subdataset.
+
+```{r}
+#Data transformation
+celulas_dataset_pp=transform_data(celulas_dataset, method = "log")
+#Data scaling
+celulas_dataset_pp=scaling(celulas_dataset_pp, method = "auto")
+#Data correction
+celulas_dataset_pp=data_correction(celulas_dataset_pp, type = "background", method = "modpolyfit")
+#smoothing-interplation
+celulas_dataset_pp=smoothing_interpolation(celulas_dataset_pp, method = "bin", reducing.factor = 2, x.axis = NULL, p.order = 3, window = 11, deriv = 0)
+#mean-centering
+celulas_dataset_pp=mean_centering(celulas_dataset_pp)
+#Data Normalization
+celulas_dataset_pp=normalize(celulas_dataset_pp, method="median", ref = NULL, constant = 1000)
+sum_dataset(celulas_dataset_pp)
+
+# Define the groups of quadriplicates
+groups <- list(
+  A_Cefeico_Celulas = c("A_Cefeico_Celulas_1", "A_Cefeico_Celulas_2", "A_Cefeico_Celulas_3", "A_Cefeico_Celulas_4"),
+  A_Clorogenico_Celulas = c("A_Clorogenico_Celulas_1", "A_Clorogenico_Celulas_2", "A_Clorogenico_Celulas_3", "A_Clorogenico_Celulas_4"),
+  Cafeina_Celulas = c("Cafeina_Celulas_1", "Cafeina_Celulas_2", "Cafeina_Celulas_3", "Cafeina_Celulas_4"),
+  CafeTorrado_Celulas = c("CafeTorrado_Celulas_1", "CafeTorrado_Celulas_2", "CafeTorrado_Celulas_3", "CafeTorrado_Celulas_4"),
+  CafeVerde_Celulas = c("CafeVerde_Celulas_1", "CafeVerde_Celulas_2", "CafeVerde_Celulas_3", "CafeVerde_Celulas_4")
+)
+
+# Extract the ppm values from the celulas_dataset
+ppm <- rownames(celulas_dataset_pp$data)
+
+# Create an empty dataframe to store the mean intensities
+mean_df <- data.frame(ppm = ppm)
+
+# Iterate over the groups of quadriplicates
+for (group in names(groups)) {
+  quadriplicates <- groups[[group]]
+  
+  # Find the column indices for the quadriplicates
+  cols <- sapply(quadriplicates, function(quad) grep(quad, colnames(celulas_dataset$data)))
+  
+  # Calculate the mean intensity for each ppm value
+  mean_intensity <- rowMeans(celulas_dataset_pp$data[, cols], na.rm = TRUE)
+  
+  # Add the mean intensity to the mean_df dataframe
+  mean_df[[group]] <- mean_intensity
+}
+
+```
+
+
+
+The nest step was perform Principal Component Analysis (PCA), that is a widely used technique in data analysis and dimensionality reduction. It allows to explore the underlying structure of the "exometabolome" dataset by transforming the original variables into a new set of uncorrelated variables called principal components. By performing PCA, we aim to capture the most important patterns and variations in the data, simplifying its complexity and facilitating further analysis and interpretation.
+
+Analysing the metrics resulting of the pci perform, inthe case of the standard deviation, the higher value indicates that the data points are more dispersed along that PC. In terms of proportion of variance, the PC1 explains 50.58% of the variance, PC2 explains 23.72%, PC3 explains 15.45%, PC4 explains 7.73%, and PC5 explains 2.52%. 
+
+The principal component loadings indicate the correlation between the original variables and each PC. They represent the weights assigned to each variable in the construction of the principal components. The loadings show the direction and strength of the relationship between the variables and the PCs. Positive and negative values indicate the direction of the correlation, while the magnitude represents the strength of the correlation. 
+
+This way, its possible to verify that in the case of the ceffeic acid  and chlorogenic acid samples, they have a positive loading on PC1 and PC4, indicating a positive correlation with these components. However, caffein sample has a negative loading on PC1 and PC3, indicating a negative correlation with these components. Focusing on the extracts in analysis, the ETCPC has a positive loading on PC1 and a negative loading on PC5 and EGCPC has a positive loading on PC1 and PC5, indicating a positive correlation with these components.
+
+
+```{r}
+
+# Perform PCA
+pca_result <- prcomp(mean_df[, -1], scale. = TRUE)
+
+# Access the results
+summary(pca_result)
+# Access the proportion of variance explained by each principal component
+pca_result$standardDeviation^2 / sum(pca_result$standardDeviation^2)
+
+# Access the loadings (correlations between variables and principal components)
+pca_result$rotation
+
+# Extract the proportions of variance explained from pca_result
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+# Create a scree plot
+barplot(var_explained,
+        names.arg = paste0("PC", 1:length(var_explained)),
+        xlab = "Principal Component",
+        ylab = "Proportion of Variance Explained",
+        main = "Scree Plot")
+
+```
+
+The next step was performing K-means clustering, a common approach to partitioning the dataset into distinct groups or clusters. In this code snippet, it was applied K-means clustering to the "exometabolome" dataset with the aim of identifying meaningful patterns and grouping similar observations together. Wherever focusing on the extracts in analysis, is was not visible a clear separation between the clusters.
+
+```{r}
+
+# Perform K-means clustering
+k <- 3  # Number of clusters
+set.seed(123)  # Set seed for reproducibility
+kmeans_result <- kmeans(mean_df[, -1], centers = k)
+
+# Access the cluster assignments
+cluster_assignments <- kmeans_result$cluster
+
+# Create cluster profiles
+cluster_profiles <- aggregate(mean_df[, -1], by = list(cluster = cluster_assignments), FUN = mean)
+
+# Assess cluster quality (within-cluster sum of squares)
+within_cluster_sumsq <- kmeans_result$tot.withinss
+
+# Add the cluster assignments to the mean_df dataframe
+mean_df$Cluster <- as.factor(cluster_assignments)
+
+# Scatter plot
+ggplot(mean_df, aes(x = CafeTorrado_Celulas, y = CafeVerde_Celulas, color = Cluster)) +
+  geom_point() +
+  labs(x = "CafeTorrado_Celulas", y = "CafeVerde_Celulas", color = "Cluster") +
+  theme_minimal()
+
+```
+The correlation analysis reveals that the chlorogenic acid data is strongly positively correlated with the samples of the extracts in analysis. Also, as expected the samples of the ETCPC and EGCPC have the higher correlation with 0.87
+
+```{r}
+# Convert the columns of mean_df to numeric
+mean_df_numeric <- as.data.frame(sapply(mean_df[, -1], as.numeric))
+
+# Calculate the correlation matrix
+cor_matrix <- cor(mean_df_numeric)
+
+# Visualize the correlation matrix
+corrplot(cor_matrix, method = "color", type = "upper", 
+         tl.col = "black", tl.srt = 45, tl.cex = 0.8,
+         addCoef.col = "black", addCoef.fontsize = 10)
+```
+After performing the unsupervised analysis of the "exometabolome" dataset, a strategy was devised to determine if the addition of the analyzed components to the fibroblast cell culture had any effect on cell regeneration and proliferation.
+
+Firstly, a review of the literature was conducted to identify metabolites in the extracellular medium of fibroblasts that could indicate the process of wound healing. In fibroblasts, several extracellular metabolites can indicate cell regeneration and can be detected by 1H NMR. 
+
+Fibroblasts play a crucial role in cell regeneration and tissue repair. They are responsible for synthesizing and organizing the extracellular matrix (ECM), a complex network of proteins and molecules that provides structural support to tissues. Fibroblasts are involved in various stages of the wound healing process, including inflammation, proliferation, and remodeling.
+
+During cell regeneration, fibroblasts are activated and migrate to the site of injury or damage. They secrete ECM components such as collagen, elastin, and fibronectin, which form the foundation for tissue regeneration. The ECM not only provides structural support but also acts as a signaling platform for cell communication and tissue remodeling.
+
+Metabolic pathways play a vital role in supporting fibroblast functions during cell regeneration. Fibroblasts require energy and resources to synthesize ECM components, proliferate, and perform other cellular activities. The main metabolic pathways involved include:
+
+  Glycolysis: Fibroblasts rely on glycolysis, the breakdown of glucose, to generate ATP (adenosine triphosphate), the energy currency of cells. Glycolysis provides the necessary energy for fibroblast migration and ECM synthesis.
+
+  TCA (tricarboxylic acid) cycle: Also known as the Krebs cycle or citric acid cycle, the TCA cycle is involved in the oxidation of carbon sources, such as glucose and fatty acids, to produce ATP and precursor molecules for ECM synthesis.
+
+  Amino acid metabolism: Fibroblasts require amino acids for protein synthesis, including the production of ECM components. Amino acids can be obtained from the diet or recycled from cellular breakdown products.
+
+  Pentose phosphate pathway: This pathway generates NADPH (nicotinamide adenine dinucleotide phosphate), which is essential for maintaining cellular redox balance and providing reducing equivalents for biosynthetic processes, including ECM synthesis.
+
+  Fatty acid metabolism: Fibroblasts can utilize fatty acids as an energy source through beta-oxidation. Fatty acids can also serve as building blocks for lipid components of the ECM.
+
+Overall, fibroblasts' involvement in cell regeneration requires active metabolic pathways to support their energy needs, synthesize ECM components, and perform essential cellular functions. These processes are tightly regulated and coordinated to ensure efficient tissue repair and regeneration.
+
+Having this information in consideration, this are some examples of extracelullar metabolits that can ben directly or indirectly related to the fibroblats metabolism during the regeneration process:
+
+  1. Lactate: Lactate is a key metabolite in cell metabolism and can indicate increased glycolysis, which is often associated with active cell growth and regeneration. In 1H NMR spectra, lactate typically appears as a singlet peak around 1.3-1.4 ppm.
+
+  2. Alanine: Alanine is an amino acid involved in energy metabolism. Its presence can indicate active cellular metabolism and regeneration. In 1H NMR spectra, alanine is observed as a doublet peak around 1.4 ppm.
+
+  3. Glutamate and glutamine: Glutamate and glutamine are amino acids involved in various cellular processes, including energy metabolism and nitrogen transport. Their levels can indicate cell proliferation and regeneration. Glutamate typically appears as a multiplet peak around 2.1-2.4 ppm, while glutamine is observed as a peak around 2.45-2.5 ppm.
+
+  4. Acetate: Acetate is a metabolite that can be produced by cells during regeneration processes. It can be detected by its peak around 1.9 ppm.
+
+  5. Succinate: Succinate is an intermediate of the tricarboxylic acid (TCA) cycle and can indicate active cellular metabolism and regeneration. It typically appears as a multiplet peak around 2.4 ppm.
+    
+To identify the presence of these metabolites in the analyzed samples, separate functions were implemented for each metabolite based on their 1H NMR profiles. The Human Metabolome Database (HMDB) and SpectraBase databases were consulted to obtain the chemical shift values and intensities of each isolated metabolite's profile.
+Of the analyzed metabolites, only lactate and alanine were detected. The absence of glutamine in the extracellular medium can be justified by its transport into the intracellular medium for collagen synthesis.
+
+```{r}
+# Exclude columns "Branco_Meio_1" and "Branco_Meio_2"
+columns_to_exclude <- c("Branco_Meio_1", "Branco_Meio_2")
+columns_to_process <- colnames(peaks_cell$data)[!colnames(peaks_cell$data) %in% columns_to_exclude]
+
+# Iterate over each column name
+for (col_name in columns_to_process) {
+  # Apply find_lactate(), find_alanine(), find_glutamine(), find_acetate(), and find_succinate() functions for each column
+  find_lactate(peaks_cell, col_name)
+  find_alanine(peaks_cell, col_name)
+  find_glutamine(peaks_cell, col_name)
+  find_acetate(peaks_cell, col_name)
+  find_succinate(peaks_cell, col_name)
+}
+
+```
+
+### Analysis of the subdataset "endometabolome"
+
+
+The analysis of the "endometabolome" sub-dataset aims to identify intracellular metabolites to gain insights into the metabolic pathways involved in the cellular regeneration process. In this case, only the 1H NMR data from the experiments with the analyzed extracts were analyzed. Regarding the composition of the sub-dataset, it consisted of 2 samples of ETCPC and 3 samples of EGCPC.
+
+```{r}
+
+varian_nmr_endo="/home/catia/Desktop/projeto_bioinf/endo_coffee"
+endo_ext="/home/catia/Desktop/projeto_bioinf/endo_extrac.csv"
+
+
+directories_to_read = grep(".*[.]fid", list.dirs(varian_nmr_endo,
+        full.names = TRUE), value = TRUE)
+
+
+for (i in (directories_to_read)) {
+    spectrum = read_varian_spec_raw(spectrum_directory = i,
+                                     fid_filename = "fid",
+                                     procpar_filename = "procpar",
+                                     zero_filling = TRUE,
+                                     apodization = TRUE)
+    print(i)
+    print(length(spectrum[[2]]))
+}
+```
+
+```{r}
+
+endo_dataset=read_varian_spectra_raw(varian_nmr_endo,samples.names=endo_ext ,zipped=F, zero_filling=F)
+DT::datatable(endo_dataset$data[1:500,], options=list(scrollX = TRUE))
+peaks_endo_ext=detect_nmr_peaks_from_dataset(endo_dataset, baseline_tresh = 20000)
+DT::datatable(peaks_endo_ext$data, options=list(scrollX = TRUE))
+sum_dataset(endo_dataset)
+
+```
+
+
+These statistics provide information about the distribution of the data, including the minimum and maximum values, quartiles, median, and mean.
+
+The "CT_endo_1" and "CT_endo_2" samples have relatively similar values across all statistical measures, indicating that the duplicates are consistent with each other.
+
+The "CV_endo_1," "CV_endo_2," and "CV_endo_3" samples show some variation in the statistical measures, especially in the mean and maximum values, suggesting potential differences or variability within the triplicate samples, particularly in the case of sample 3.
+
+Considering the spectral profile, the same observations were made. In the case of the ETCPC samples, the profiles are similar, with a notable set of peaks of lower intensity between 3 and 4 ppm and a peak of higher intensity near 5 ppm. As for the EGCPC samples, sample 3 exhibits higher intensity values compared to the other samples.
+
+```{r}
+samps.stats=stats_by_sample(endo_dataset)
+DT::datatable(samps.stats, options=list(scrollX=TRUE))
+```
+```{r}
+#Plot spectrum
+my_plot_spectra(endo_dataset, samples = c("CT_endo_1", "CT_endo_2"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+my_plot_spectra(endo_dataset, samples = c("CV_endo_1","CV_endo_2","CV_endo_3"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+my_plot_spectra(endo_dataset, samples = c("CT_endo_1","CV_endo_1"), xlab = "ppm", ylab = "intensity", reverse.x = TRUE)
+```
+```{r}
+
+sample_EndCT <- unname(endo_dataset$data[, "CT_endo_1"])
+sample_EndCT2 <- unname(endo_dataset$data[, "CT_endo_2"])
+sample_EndCV <- unname(endo_dataset$data[, "CV_endo_1"])
+sample_EndCV2 <- unname(endo_dataset$data[, "CV_endo_2"])
+sample_EndCV3 <- unname(endo_dataset$data[, "CV_endo_3"])
+data <- data.frame(
+  Sample = c(rep("CT_endo_1", length(sample_EndCT)), rep("CT_endo_2", length(sample_EndCT2)),rep("CV_endo_1", length(sample_EndCV)),rep("CV_endo_2", length(sample_EndCV2)),rep("CV_endo_3", length(sample_EndCV3))),
+  Intensity = c(sample_EndCT, sample_EndCT2, sample_EndCV, sample_EndCV2, sample_EndCV3 )
+)
+
+# Get unique levels of the "Sample" variable
+unique_samples <- unique(data$Sample)
+
+# Generate a vector of colors based on the number of unique samples
+colors <- rainbow(length(unique_samples))
+
+ggplot(data, aes(x = Sample, y = Intensity, fill = Sample)) +
+  geom_violin() +
+  labs(x = "Sample", y = "Intensity") +
+  scale_fill_manual(values = colors) +
+  theme_bw()
+
+
+ggsave("violin_proc4.png", plot = last_plot(), dpi = 300)
+```
+The comparisons between the samples of ETCPC and between samples 2 and 3 of EGCPC provided strong evidence of a significant difference. The comparison between sample 1 and 3 of EGCPC showed moderate evidence of a difference. However, the comparison between samples 1 and 2 of EGCPC did not provide sufficient evidence to reject the null hypothesis.
+
+Therefore, it was observed that sample 3 of EGCPC differs from the others. To proceed with the analysis and comparison between experiments, it was decided to only use sample 1 from each case.
+```{r}
+stest7 <- shapiro.test(sample_EndCT[1:5000] )
+stest8 <- shapiro.test(sample_EndCT2[1:5000])
+stest9 <- shapiro.test(sample_EndCV[1:5000] )
+stest10 <- shapiro.test(sample_EndCV2[1:5000])
+stest11 <- shapiro.test(sample_EndCV3[1:5000])
+print(c(stest7,stest8,stest9,stest10,stest11))
+```
+
+```{r}
+wtest8 <- wilcox.test(sample_EndCT, sample_EndCT2)
+wtest9 <- wilcox.test(sample_EndCV, sample_EndCV2)
+wtest10 <- wilcox.test(sample_EndCV2, sample_EndCV3)
+wtest11 <- wilcox.test(sample_EndCV, sample_EndCV3)
+wtest12 <- wilcox.test(sample_EndCT, sample_EndCV)
+print(c(wtest8,wtest9,wtest10,wtest11,wtest12))
+
+```
+
+```{r}
+#Data transformation
+endo_dataset = transform_data(endo_dataset, method = "log")
+#Data scaling
+endo_dataset = scaling(endo_dataset, method = "auto")
+#Data correction
+endo_dataset = data_correction(endo_dataset, type = "background", method = "modpolyfit")
+#smoothing-interplation
+endo_dataset = smoothing_interpolation(endo_dataset, method = "bin", reducing.factor = 2, x.axis = NULL, p.order = 3, window = 11, deriv = 0)
+#mean-centering
+endo_dataset = mean_centering(endo_dataset)
+
+#Multiplicative Scatter Correction
+endo_dataset = msc_correction(endo_dataset)
+#Data Normalization
+endo_dataset = normalize(endo_dataset, method="median", ref = NULL, constant = 1000)
+sum_dataset(endo_dataset)
+
+```
+The provided data represents the results of a principal component analysis (PCA). PC1 and PC2 are the two principal components derived from the analysis. PC1 explains 75.52% of the total variance in the data, while PC2 explains 24.48% of the variance. The standard deviations of PC1 and PC2 are 1.2290 and 0.6997, respectively. The cumulative proportion shows that PC1 alone explains 75.52% of the variance, and when combined with PC2, they explain 100% of the variance. The loadings or eigenvectors of the variables "endo_ect" and "endo_ecv" onto PC1 and PC2 indicate their respective influences.
+```{r}
+# Perform PCA
+ppm2 <- row.names(endo_dataset$data)
+endo_df = data.frame(ppm = ppm2, endo_ect = sample_ECT, endo_ecv = sample_ECV)
+
+pca_result <- prcomp(endo_df[, -1], scale. = TRUE)
+
+# Access the results
+summary(pca_result)
+# Access the proportion of variance explained by each principal component
+pca_result$standardDeviation^2 / sum(pca_result$standardDeviation^2)
+
+# Access the loadings (correlations between variables and principal components)
+pca_result$rotation
+
+# Extract the proportions of variance explained from pca_result
+var_explained <- pca_result$sdev^2 / sum(pca_result$sdev^2)
+
+# Create a scree plot
+barplot(var_explained,
+        names.arg = paste0("PC", 1:length(var_explained)),
+        xlab = "Principal Component",
+        ylab = "Proportion of Variance Explained",
+        main = "Scree Plot")
+
+```
+```{r}
+# Perform K-means clustering
+k <- 3  # Number of clusters
+set.seed(123)  # Set seed for reproducibility
+kmeans_result <- kmeans(endo_df[, -1], centers = k)
+
+# Access the cluster assignments
+cluster_assignments <- kmeans_result$cluster
+
+# Create cluster profiles
+cluster_profiles <- aggregate(endo_df[, -1], by = list(cluster = cluster_assignments), FUN = mean)
+
+# Assess cluster quality (within-cluster sum of squares)
+within_cluster_sumsq <- kmeans_result$tot.withinss
+
+# Add the cluster assignments to the mean_df dataframe
+endo_df$Cluster <- as.factor(cluster_assignments)
+
+# Scatter plot
+ggplot(endo_df, aes(x = endo_ect, y = endo_ecv, color = Cluster)) +
+  geom_point() +
+  labs(x = "endo_ect", y = "endo_ecv", color = "Cluster") +
+  theme_minimal()
+
+```
+
+Furthermore, the correlation between the samples was determined to be 0.510, that indicates a moderate relationship between the two samples.
+
+```{r}
+cor(endo_df[, 'endo_ect'],endo_df[, 'endo_ecv'])
+```
+
+After conducting the unsupervised analysis of the ”endometabolome” dataset, the same strategy as described above was implemented. The objective is to assess whether the addition of extracts to the fibroblast cell culture had any impact on cell regeneration and proliferation, specifically in terms of intracellular metabolism and extracellular matrix (ECM) composition.
+
+In addition to the previously mentioned metabolic pathways, the metabolic pathways involved in phospholipid and collagen synthesis will be further elucidated. These pathways play a crucial role in the intracellular medium of fibroblasts and are important for the process of wound healing.
+It is important to note that directly detecting specific ECM components such as collagen and fibronectin using 1H NMR spectroscopy may be challenging due to their larger size and complex structure.
+
+However, certain metabolites can indirectly indicate ECM remodeling and cell regeneration processes. While these metabolites may not be exclusive to collagen synthesis, they can provide insights into overall cellular activity and tissue regeneration. Examples of such metabolites include:
+ 1. Choline-containing compounds: Choline is involved in phospholipid synthesis, which is essential for cell membrane formation. Increased choline levels can suggest active cell growth and regeneration.
+2. Glycine: Glycine is an amino acid that serves as a fundamental building block for collagen synthesis. Its presence may indirectly indicate the potential for collagen production.
+Among the analyzed metabolites, choline and glycine were detected in the intracellular medium, indicating ECM remodeling and cell regeneration processes
+
+```{r}
+find_choline(endo_dataset,"CT_endo_1")
+find_choline(endo_dataset,"CV_endo_1")
+find_glycine(endo_dataset,"CT_endo_1")
+find_glycine(endo_dataset,"CV_endo_1")
+```
+### Conclusion 
+
+The analysis of the metabolomic profiles of the extracts confirmed the presence of relevant bioactive compounds, such as caffeine and chlorogenic acid.
+
+The results from the samples obtained in the experiments with fibroblast cell culture suggest that chlorogenic acid, caffeine, and caffeic acid can stimulate cellular regeneration when used at low concentrations. Similarly, the analysis of the metabolomic profiles in the presence of coffee paste extracts indicates a positive influence on the process of skin repair.
+
+Thus, it can be inferred that the three compounds under analysis are examples of some of the bioactive compounds present in coffee paste extracts that may promote cellular regeneration and proliferation. However, it is necessary to consider the complexity of the involved metabolic pathways and the synergistic effect of multiple compounds on metabolic pathway regulation.
+
+Some of the metabolites indicating ECM remodeling and cell regeneration processes were identified in the samples with coffee paste extracts. Therefore, it was possible to identify potential metabolic pathways in which the coffee paste metabolites may be directly or indirectly interfering. Some examples of the identified metabolic pathways include glycolysis, amino acid metabolism (arginine, glutamine, and glycine), and phospholipid synthesis.
+
+In order to understand the direct effect of the bioactive compounds in coffee paste extracts on the metabolic pathways of fibroblasts, more detailed analyses could be performed with the assistance of databases such as Kyoto Encyclopedia of Genes and Genomes (KEGG), Reactome, and BioCyc.
+
+Furthermore, it is important to emphasize that the effects of cell regeneration are complex and can depend on various factors, including concentration, exposure time, and interaction with other compounds. Therefore, future studies could be conducted to investigate the variation in concentration of coffee paste extracts and the exposure time of cells to the metabolites.
+
+
